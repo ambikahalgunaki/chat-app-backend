@@ -11,53 +11,50 @@ const path = require('path')
 
 const server = express()
 
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173'
+// CORS
 server.use(cors({
-    origin: FRONTEND_URL,
+    origin: '*',
     credentials: true
 }))
 server.use(bodyParser.json())
 
+// Static files
 server.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 
+// ✅ ROOT ROUTE - Shows database status
 server.get('/', (req, res) => {
-    const dbStatus = mongoose.connection.readyState === 1 ? 'Connected ✅' : 'Disconnected ❌'
+    const status = mongoose.connection.readyState
+    const statusText = {
+        0: 'Disconnected ❌',
+        1: 'Connected ✅',
+        2: 'Connecting...',
+        3: 'Disconnecting...'
+    }
     res.json({
         message: 'Chat App Backend is running! 🚀',
-        status: 'active',
-        database: dbStatus,
-        timestamp: new Date().toISOString(),
-        endpoints: {
-            auth: '/api/register, /api/login',
-            users: '/api/users',
-            messages: '/api/messages'
-        }
+        database: statusText[status] || 'Unknown',
+        readyState: status,
+        mongodb_uri_set: !!process.env.MONGODB_URI
     })
 })
 
+// API Routes
 server.use('/api', userRoutes)
 server.use('/api/messages', messageRoutes)
 
 const chatServer = http.createServer(server)
 
-// ✅ Connect to database FIRST, then start server
-const startServer = async () => {
-    try {
-        await connectDB()
-        
-        const PORT = process.env.PORT || 3000
-        chatServer.listen(PORT, () => {
-            console.log(`✅ Server started listening on port ${PORT}`)
-            console.log(`✅ API available at: http://localhost:${PORT}/api`)
-            console.log(`✅ WebSocket available at: ws://localhost:${PORT}`)
-        })
-    } catch (error) {
-        console.error('❌ Failed to start server:', error.message)
-        process.exit(1)
-    }
-}
+// ✅ CONNECT TO DATABASE
+console.log('🚀 Starting server...')
+connectDB()
 
-startServer()
-
-// Initialize socket after server starts
+// ✅ START SOCKET
 socketServer(chatServer)
+
+// ✅ START SERVER
+const PORT = process.env.PORT || 3000
+chatServer.listen(PORT, () => {
+    console.log(`✅ Server running on port ${PORT}`)
+    console.log(`✅ API: http://localhost:${PORT}/api`)
+    console.log(`✅ Health: http://localhost:${PORT}/`)
+})
