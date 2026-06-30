@@ -40,14 +40,24 @@ server.use('/api/messages', messageRoutes)
 
 const chatServer = http.createServer(server)
 
-// ✅ Connect to database first, then start server
-connectDB()
+// ✅ Connect to database FIRST, then start server
+const startServer = async () => {
+    try {
+        await connectDB()
+        
+        const PORT = process.env.PORT || 3000
+        chatServer.listen(PORT, () => {
+            console.log(`✅ Server started listening on port ${PORT}`)
+            console.log(`✅ API available at: http://localhost:${PORT}/api`)
+            console.log(`✅ WebSocket available at: ws://localhost:${PORT}`)
+        })
+    } catch (error) {
+        console.error('❌ Failed to start server:', error.message)
+        process.exit(1)
+    }
+}
 
+startServer()
+
+// Initialize socket after server starts
 socketServer(chatServer)
-
-const PORT = process.env.PORT || 3000
-chatServer.listen(PORT, () => {
-    console.log(`Server started listening on port ${PORT}`)
-    console.log(`✅ API available at: http://localhost:${PORT}/api`)
-    console.log(`✅ WebSocket available at: ws://localhost:${PORT}`)
-})
